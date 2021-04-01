@@ -20,7 +20,7 @@ Right now, you need to find the line 153 in "main.py", change the team nickname 
 You'll need all the dependencies installed first, of course.
 If it works the Sankey plot will automatically open in your default browser.
 
-The plot displays the lineup, rotation, bullpen and becnh of the chosen team over time, including changes to the ordering due to e.g. Reverb. 
+The plot displays the lineup, rotation, bullpen and bench of the chosen team over time, including changes to the ordering due to e.g. Reverb. 
 It also shows timelines for any player who has ever been on the chose team, however briefyl: their careers outside the team in question are shown
 as lines at the bottom of the plot.
 
