@@ -1,0 +1,8 @@
+SELECT team_roster_id, r.team_id, r.valid_from, r.valid_until, r.player_id, player_name, nickname, team_main_color, team_secondary_color, position_type_id, position_id, r.tournament, data.gameday_from_timestamp(r.valid_from), data.gameday_from_timestamp(r.valid_until), data.gamephase_from_timestamp(r.valid_from), data.gamephase_from_timestamp(r.valid_until)
+FROM DATA.team_roster r
+JOIN DATA.players p
+ON (r.player_id = p.player_id AND p.valid_until IS NULL)
+JOIN DATA.teams t
+ON (r.team_id = t.team_id AND t.valid_until IS NULL)
+WHERE r.tournament = -1
+ORDER BY r.player_id, r.valid_from
