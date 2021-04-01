@@ -5,7 +5,7 @@ INTRO
 
 This is a tool that uses data from the Society for Internet Blaseball Research's Datablase stack to visualise timelines of players and teams over time.
 The intent is it should be possible to create views of any team and any time span, in order to entertain, inform and educate people on Blaseball history.
-It is written in Python 3.8+ or so, utilises the Plotly library extensively, has a lil bit of SQL in there to get data out of the Datablase,
+It is written in Python 3.9 or so, utilises the Plotly library extensively, has a lil bit of SQL in there to get data out of the Datablase,
 and is the first coding project I've done that I've ever felt like someone else might be interested in. Accordingly, expect Bad Code and Data Crimes.
 
 If you don't know what Blaseball is, my goodness I can't possibly explain here. This video is good: https://www.youtube.com/watch?v=Y5t8DwnDE1k , it's what got
