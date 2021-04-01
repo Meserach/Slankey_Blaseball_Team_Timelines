@@ -16,8 +16,10 @@ and if they do they should introduce themselves in a new version of this I guess
 
 USAGE NOTES
 
+You'll need all the dependencies installed first, of course. Right now that's Python 3.9 and the Plotly library ( pip install plotly ).
+
 Right now, you need to find the line 153 in "main.py", change the team nickname there to the one you want to see, and then run the code. 
-You'll need all the dependencies installed first, of course.
+
 If it works the Sankey plot will automatically open in your default browser.
 
 The plot displays the lineup, rotation, bullpen and bench of the chosen team over time, including changes to the ordering due to e.g. Reverb. 
