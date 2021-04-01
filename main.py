@@ -67,14 +67,15 @@ class PlayerCareer:
         _link_sources = []
         _link_targets = []
         _link_values = []
-        _i = 0
+        _link_colors = []
         _phase_count = 0
         _new_index = 0
         for __current_career_phase in self.__career_phases:
-            _phase_count += 1
+
             # each career phase is a pair of nodes (start and end) with a link between,
             # a span where they were on one team
             _color = __current_career_phase["team_main_color"]
+            _color2 = __current_career_phase["team_secondary_color"]
             _y_position_dictionary = {"team_name": __current_career_phase["nickname"],
                                       "position_type_id": __current_career_phase["position_type_id"],
                                       "position_id": __current_career_phase["position_id"]}
@@ -85,6 +86,10 @@ class PlayerCareer:
             _node_x_position_dictionaries.append(_x_position_dictionary)
             _node_y_position_dictionaries.append(_y_position_dictionary)
             _node_colors.append(_color)
+            _link_sources.append((2*_phase_count) + _index_of_last_node_added)
+            _link_targets.append((2*_phase_count) + _index_of_last_node_added + 1)
+            _link_values.append(1)
+            _link_colors.append(_color2)
 
             # second node
             _x_position_dictionary, _label = self.node_x_and_labels_method(False, __current_career_phase)
@@ -92,19 +97,20 @@ class PlayerCareer:
             _node_x_position_dictionaries.append(_x_position_dictionary)
             _node_y_position_dictionaries.append(_y_position_dictionary)
             _node_colors.append(_color)
-
-        while _i < len(_node_labels)-1:
-            _link_sources.append(_i + _index_of_last_node_added)
-            _link_targets.append(_i + _index_of_last_node_added + 1)
-            _link_values.append(1)
-            _i += 1
-
+            # if this is the last node in the players career, don't add a link to the next node
+            if (_phase_count + 1) < len(self.__career_phases):
+                _link_sources.append((2*_phase_count) + _index_of_last_node_added + 1)
+                _link_targets.append((2*_phase_count) + _index_of_last_node_added + 2)
+                _link_values.append(1)
+                _link_colors.append(_color2)
+            _phase_count += 1
         _new_index = _index_of_last_node_added + len(_node_labels)
 
         return {"node_labels": _node_labels,
                 "link_sources": _link_sources,
                 "link_targets": _link_targets,
                 "link_values": _link_values,
+                "link_colors": _link_colors,
                 "node_x_position_dictionaries": _node_x_position_dictionaries,
                 "node_y_position_dictionaries": _node_y_position_dictionaries,
                 "node_colors": _node_colors,
@@ -167,6 +173,7 @@ for player in players_index:
         link_sources.extend(node_export["link_sources"])
         link_targets.extend(node_export["link_targets"])
         link_values.extend(node_export["link_values"])
+        link_colors.extend(node_export["link_colors"])
 
         # now the more difficult problem of node positioning
         # node position on x axis is based on season and day within season
@@ -252,7 +259,8 @@ event_nodes = dict(
 event_links = dict(
     source=link_sources,
     target=link_targets,
-    value=link_values
+    value=link_values,
+    color =link_colors,
 )
 
 data = go.Sankey(node=event_nodes, link=event_links, arrangement="fixed")
