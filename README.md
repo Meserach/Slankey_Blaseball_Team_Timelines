@@ -16,9 +16,11 @@ and if they do they should introduce themselves in a new version of this I guess
 
 USAGE NOTES
 
-You'll need all the dependencies installed first, of course. Right now that's Python 3.9 and the Plotly library ( pip install plotly ).
+You'll need all the dependencies installed first, of course. Right now that's Python 3 ( I'm using the current latest which is 3.9 as of committing ) and the Plotly library ( pip install plotly ).
 
 Right now, you need to find the line 153 in "main.py", change the team nickname there to the one you want to see, and then run the code. 
+
+You can run the code using the command "python main.py" or "py main.py" (depending on your python installation) via command line or run it inside an IDE like PyCharm.
 
 If it works the Sankey plot will automatically open in your default browser.
 
