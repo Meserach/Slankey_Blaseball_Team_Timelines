@@ -32,3 +32,4 @@ LIMITATIONS
 
 Right now it displays one (1) team, and all the players who have ever been on that team, however briefly.
 It's also locked at present to displying the whole history of the IBL (Internet Blaseball League).
+
