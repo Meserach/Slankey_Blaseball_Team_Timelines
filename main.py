@@ -1,5 +1,6 @@
 import plotly.graph_objects as go
 import csv
+from operator import itemgetter
 
 
 class PlayerCareer:
@@ -23,6 +24,7 @@ class PlayerCareer:
     @staticmethod
     def node_x_and_labels_method(_is_first, __current_career_phase):
         _label = ''
+        _team = __current_career_phase["nickname"]
 
         if _is_first:
             _season_and_day = __current_career_phase["gamephase_from_timestamp"].strip("()").split(",")
@@ -48,10 +50,12 @@ class PlayerCareer:
                 _season_and_day[2] = '135'
         if _is_first:
             _x_position_dictionary = {"season": int(_season_and_day[0]),
-                                      "day": int(_season_and_day[2])}
+                                      "day": int(_season_and_day[2]),
+                                      "team": _team}
         else:
             _x_position_dictionary = {"season": int(_season_and_day[0]),
-                                      "day": int(_season_and_day[2]) - 1}
+                                      "day": int(_season_and_day[2]) - 1,
+                                      "team": _team}
         if _is_first:
             _label = __current_career_phase["player_name"] + " S" + str(int(_season_and_day[0]) + 1) + "D" + str(
                 int(_season_and_day[2]) + 1)
@@ -156,10 +160,30 @@ first_unused_visiting_player_slot = 0
 players_drawn = 0
 seasons_to_view = 14
 max_days_per_season = 135
-team_to_display = "Millennials"
+team_to_display = "Firefighters"
 current_season_and_day = ['13', '', '120', '']
+x_axis_type = "DYNAMIC"   # current options are "LINEAR" and "DYNAMIC"
+unique_season_and_day_list = []
 
+# first we will loop through all players to determine how many x-axis slots are required for the dynamic view
+for player in players_index:
+    career = player["player_career"]
+    if career.was_player_ever_on_team(team_to_display):
+        node_export = career.export_nodes(index_of_last_node_added, current_season_and_day)
+        node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
+        for node_dictionary in node_x_position_dictionaries:
+            season_and_day = [node_dictionary.get("season"), node_dictionary.get("day")]
+            if season_and_day in unique_season_and_day_list:
+                pass
+            else:
+                unique_season_and_day_list.append(season_and_day)
+    else:
+        pass
 
+number_of_x_axis_slots = len(unique_season_and_day_list)
+unique_season_and_day_list.sort(key=itemgetter(0, 1))
+
+# now we will loop through all players to assign the correct values to nodea of the Sankey plot
 for player in players_index:
     career = player["player_career"]
     if career.was_player_ever_on_team(team_to_display):
@@ -176,12 +200,25 @@ for player in players_index:
         link_colors.extend(node_export["link_colors"])
 
         # now the more difficult problem of node positioning
-        # node position on x axis is based on season and day within season
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
-        x_pos_list = []
-        for x_pos_dict in node_x_position_dictionaries:
-            x_pos = round(((float(x_pos_dict["season"]) + (float(x_pos_dict["day"]) / max_days_per_season)) / (float(seasons_to_view)+0.1)), 3)
-            x_pos_list.append(x_pos)
+        x_pos_list = []  # the eventual target, all the values in here need to be a normalised co-ordinate from 0 to 1
+
+        # for LINEAR VIEW: node position on x axis is based on season and day within season
+        if x_axis_type == "LINEAR":
+            for x_pos_dict in node_x_position_dictionaries:
+                x_pos = round(((float(x_pos_dict.get("season")) + (float(x_pos_dict.get("day")) / max_days_per_season)) / (float(seasons_to_view)+0.1)), 3)
+                x_pos_list.append(x_pos)
+        # for DYNAMIC VIEW: node position on x axis is based on unique season,day slot and number of those slots
+        elif x_axis_type == "DYNAMIC":
+            for node_dictionary in node_x_position_dictionaries:
+                i = 1
+                for x_axis_slot in unique_season_and_day_list:
+                    if [node_dictionary.get("season"), node_dictionary.get("day")] == x_axis_slot:
+                        x_pos_list.append(round((i / number_of_x_axis_slots), 2))
+                        break
+                    else:
+                        i += 1
+
         node_x.extend(x_pos_list)
 
         # node positioning on y-axis depends in complicated fashion on the number of players being displayed,
@@ -189,8 +226,8 @@ for player in players_index:
         node_y_position_dictionaries = node_export["node_y_position_dictionaries"]
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
-            if y_pos_dict["team_name"] == team_to_display:
-                slot_list = [int(y_pos_dict["position_type_id"]), int(y_pos_dict["position_id"]) + 1]   # +1 is hack to fix a bug, Plotly does not like 0 Y values
+            if y_pos_dict.get("team_name") == team_to_display:
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]   # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
@@ -260,7 +297,7 @@ event_links = dict(
     source=link_sources,
     target=link_targets,
     value=link_values,
-    color =link_colors,
+    color=link_colors,
 )
 
 data = go.Sankey(node=event_nodes, link=event_links, arrangement="fixed")
