@@ -1,7 +1,7 @@
 # Slankey_Blaseball_Team_Timelines
 A visualiser for Blaseball teams over time as a Sankey plot, using Python, the Plotly library and the SIBR Datablase
 
-INTRO
+**INTRO**
 
 This is a tool that uses data from the Society for Internet Blaseball Research's Datablase stack to visualise timelines of players and teams over time.
 The intent is it should be possible to create views of any team and any time span, in order to entertain, inform and educate people on Blaseball history.
@@ -14,7 +14,7 @@ me into this colossal but beautiful waste of time and emotional energy.
 I'm Meserach, because I thought that was cool when I was like 17 and I was too lazy to change it since. There's some chance people may be collaborating on this with me soon, 
 and if they do they should introduce themselves in a new version of this I guess?
 
-USAGE NOTES
+**USAGE NOTES**
 
 You'll need all the dependencies installed first, of course. Right now that's Python 3 ( I'm using the current latest which is 3.9 as of committing ) and the Plotly library ( pip install plotly ).
 
@@ -25,11 +25,11 @@ You can run the code using the command "python main.py" or "py main.py" (dependi
 If it works the Sankey plot will automatically open in your default browser.
 
 The plot displays the lineup, rotation, bullpen and bench of the chosen team over time, including changes to the ordering due to e.g. Reverb. 
-It also shows timelines for any player who has ever been on the chose team, however briefyl: their careers outside the team in question are shown
+It also shows timelines for any player who has ever been on the chose team, however briefly: their careers outside the team in question are shown
 as lines at the bottom of the plot.
 
-LIMITATIONS
+**LIMITATIONS**
 
 Right now it displays one (1) team, and all the players who have ever been on that team, however briefly.
-It's also locked at present to displying the whole history of the IBL (Internet Blaseball League).
+It's also locked at present to display the whole history of the IBL (Internet Blaseball League).
 
