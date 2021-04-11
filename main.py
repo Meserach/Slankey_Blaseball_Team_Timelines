@@ -2,12 +2,12 @@ import plotly.graph_objects as go
 import csv
 from operator import itemgetter
 
-class PlayerCareer:
+class Player:
     def __init__(self, career_phase):
         self.__player_id = career_phase["player_id"]
         self.__player_name = career_phase["player_name"]
-        self.__player_team_names = [career_phase["nickname"]]
-        self.__career_phases = [career_phase]
+        self.__player_team_name_history = [career_phase["nickname"]]
+        self.__player_career_phases = [career_phase]
 
     def get_player_id(self):
         return self.__player_id
@@ -16,14 +16,14 @@ class PlayerCareer:
         return self.__player_name
 
     def get_career_phases(self):
-        return self.__career_phases
+        return self.__player_career_phases
 
     def was_player_ever_on_team(self, team_searched):
-        return team_searched in self.__player_team_names
+        return team_searched in self.__player_team_name_history
 
-    def append_career_phase(self, career_phase):
-        self.__career_phases.append(career_phase)
-        self.__player_team_names.append(career_phase["nickname"])
+    def update_player_info(self, career_phase):
+        self.__player_career_phases.append(career_phase)
+        self.__player_team_name_history.append(career_phase["nickname"])
 
 # TODO: refactor out the code that cleans the data so this function only generates the objects and labels
 def create_x_axis_nodes_and_labels(_is_first, __current_career_phase):
@@ -125,31 +125,9 @@ def export_processed_graphing_info(__career_phases, _index_of_last_node_added, _
             "node_colors": _node_colors,
             "new_index": _new_index}
 
-# TODO: redo the logic on same vs different player in case sometimes the same player isnt all grouped together (key is playerId)
-with open('all_roster_changes.csv', newline='') as csvfile:
-    reader = csv.DictReader(csvfile)  # create a dictionary with all the data in it by reading in the CSV file
-
-    # loop through the CSV, and for each player,
-    # pick out each career phase in chronological order and assign it to a PlayerCareer object
-
-    players_index = []
-    previous_entry_player_id = ""
-    same_player = False
-    player_count = 0
-    for row in reader:
-        same_player = (row["player_id"] == previous_entry_player_id)
-        if not same_player:
-            # Create a new PlayerCareer object
-            this_career = PlayerCareer(row)
-            # store a reference to the new PlayerCareer object in an array
-            players_index.append(this_career)
-
-        if same_player:
-            this_career.append_career_phase(row)
-        previous_entry_player_id = row["player_id"]
 
 # construct ginormous arrays to pass to Plotly's Sankey method
-
+players_index = {}
 node_labels = []
 node_x = []
 y_pos_dict_slots = []
@@ -169,10 +147,26 @@ current_season_and_day = ['13', '', '120', '']
 x_axis_type = "DYNAMIC"   # current options are "LINEAR" and "DYNAMIC"
 unique_season_and_day_list = []
 
+# read a csv file with all player data and create a dictionary that maps player id to the player object
+with open('all_roster_changes.csv', newline='') as csvfile:
+    csvFile = csv.DictReader(csvfile)  
+    for playerInfoRow in csvFile:
+        player_id = playerInfoRow["player_id"]
+        player_exists = (player_id in players_index)
+
+        # if the player doesnt exist yet in our player_index dict, create a new player object and add it to the dict
+        if not player_exists:
+            new_player = Player(playerInfoRow)
+            players_index[player_id] = new_player
+
+        # if the player already exists in our dict, just update the existing player with the new info
+        if player_exists:
+            players_index[player_id].update_player_info(playerInfoRow)
+
 # first we will loop through all players to determine how many x-axis slots are required for the dynamic view
-for career in players_index:
-    if career.was_player_ever_on_team(team_to_display):
-        node_export = export_processed_graphing_info(career.get_career_phases(), index_of_last_node_added, current_season_and_day)
+for player in players_index.values():
+    if player.was_player_ever_on_team(team_to_display):
+        node_export = export_processed_graphing_info(player.get_career_phases(), index_of_last_node_added, current_season_and_day)
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
         for node_dictionary in node_x_position_dictionaries:
             season_and_day = [node_dictionary.get("season"), node_dictionary.get("day")]
@@ -187,13 +181,13 @@ number_of_x_axis_slots = len(unique_season_and_day_list)
 unique_season_and_day_list.sort(key=itemgetter(0, 1))
 
 # now we will loop through all players to assign the correct values to nodea of the Sankey plot
-for career in players_index:
-    if career.was_player_ever_on_team(team_to_display):
-        print("doing nodes for Player:", career.get_player_name())
+for player in players_index.values():
+    if player.was_player_ever_on_team(team_to_display):
+        print("doing nodes for Player:", player.get_player_name())
         was_ever_not_on_team = False
         # take our big node_export data bundle and break it into the parts we need to pass to Plotly
         # and append those to the long lists Plotly takes as input
-        node_export = export_processed_graphing_info(career.get_career_phases(), index_of_last_node_added, current_season_and_day)
+        node_export = export_processed_graphing_info(player.get_career_phases(), index_of_last_node_added, current_season_and_day)
         node_labels.extend(node_export["node_labels"])
         node_colors.extend(node_export["node_colors"])
         link_sources.extend(node_export["link_sources"])
@@ -240,7 +234,7 @@ for career in players_index:
         index_of_last_node_added = node_export["new_index"]
         players_drawn += 1
     else:
-        print("skipping Player:", career.get_player_name(), "as was never on ", team_to_display)
+        print("skipping Player:", player.get_player_name(), "as was never on ", team_to_display)
 
 print("Total player careers drawn: ", players_drawn)
 print("Total slots used for visiting players", first_unused_visiting_player_slot - 1)
