@@ -57,8 +57,7 @@ class PlayerCareer:
                                       "day": int(_season_and_day[2]) - 1,
                                       "team": _team}
         if _is_first:
-            _label = __current_career_phase["player_name"] + " S" + str(int(_season_and_day[0]) + 1) + "D" + str(
-                int(_season_and_day[2]) + 1)
+            _label = __current_career_phase["player_name"]
         else:
             _label = ""
         return _x_position_dictionary, _label
@@ -72,12 +71,14 @@ class PlayerCareer:
         _link_targets = []
         _link_values = []
         _link_colors = []
+        _link_labels = []
         _phase_count = 0
         _new_index = 0
         for __current_career_phase in self.__career_phases:
 
             # each career phase is a pair of nodes (start and end) with a link between,
             # a span where they were on one team
+            _link_label = __current_career_phase["player_name"]
             _color = __current_career_phase["team_main_color"]
             _color2 = __current_career_phase["team_secondary_color"]
             _y_position_dictionary = {"team_name": __current_career_phase["nickname"],
@@ -94,6 +95,7 @@ class PlayerCareer:
             _link_targets.append((2*_phase_count) + _index_of_last_node_added + 1)
             _link_values.append(1)
             _link_colors.append(_color2)
+            _link_labels.append(_link_label)
 
             # second node
             _x_position_dictionary, _label = self.node_x_and_labels_method(False, __current_career_phase)
@@ -107,6 +109,7 @@ class PlayerCareer:
                 _link_targets.append((2*_phase_count) + _index_of_last_node_added + 2)
                 _link_values.append(1)
                 _link_colors.append(_color2)
+                _link_labels.append(_link_label)
             _phase_count += 1
         _new_index = _index_of_last_node_added + len(_node_labels)
 
@@ -115,6 +118,7 @@ class PlayerCareer:
                 "link_targets": _link_targets,
                 "link_values": _link_values,
                 "link_colors": _link_colors,
+                "link_labels": _link_labels,
                 "node_x_position_dictionaries": _node_x_position_dictionaries,
                 "node_y_position_dictionaries": _node_y_position_dictionaries,
                 "node_colors": _node_colors,
@@ -155,6 +159,7 @@ link_sources = []
 link_targets = []
 link_values = []
 link_colors = []
+link_labels = []
 index_of_last_node_added = 0
 first_unused_visiting_player_slot = 0
 players_drawn = 0
@@ -181,9 +186,9 @@ for player in players_index:
         pass
 
 number_of_x_axis_slots = len(unique_season_and_day_list)
-unique_season_and_day_list.sort(key=itemgetter(0, 1))
+unique_season_and_day_list.sort(key=itemgetter(0, 1))  # sort the time slots in order by season and then by day
 
-# now we will loop through all players to assign the correct values to nodea of the Sankey plot
+# now we will loop through all players to assign their values to nodes of the Sankey plot
 for player in players_index:
     career = player["player_career"]
     if career.was_player_ever_on_team(team_to_display):
@@ -198,6 +203,7 @@ for player in players_index:
         link_targets.extend(node_export["link_targets"])
         link_values.extend(node_export["link_values"])
         link_colors.extend(node_export["link_colors"])
+        link_labels.extend(node_export["link_labels"])
 
         # now the more difficult problem of node positioning
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
@@ -206,9 +212,11 @@ for player in players_index:
         # for LINEAR VIEW: node position on x axis is based on season and day within season
         if x_axis_type == "LINEAR":
             for x_pos_dict in node_x_position_dictionaries:
-                x_pos = round(((float(x_pos_dict.get("season")) + (float(x_pos_dict.get("day")) / max_days_per_season)) / (float(seasons_to_view)+0.1)), 3)
+                x_pos = round(((float(x_pos_dict.get("season")) +
+                                (float(x_pos_dict.get("day")) / max_days_per_season)) /
+                               (float(seasons_to_view)+0.1)), 3)
                 x_pos_list.append(x_pos)
-        # for DYNAMIC VIEW: node position on x axis is based on unique season,day slot and number of those slots
+        # for DYNAMIC VIEW: node position on x axis is based on unique [season,day] slot and number of those slots
         elif x_axis_type == "DYNAMIC":
             for node_dictionary in node_x_position_dictionaries:
                 i = 1
@@ -227,7 +235,8 @@ for player in players_index:
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
             if y_pos_dict.get("team_name") == team_to_display:
-                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]   # +1 is hack to fix a bug, Plotly does not like 0 Y values
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]
+                # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
@@ -279,7 +288,11 @@ for dictionary in y_pos_dict_slots:
             un_normalised_y = max_lineup + max_rotation + max_bullpen + dictionary["slot"][1]
     else:
         un_normalised_y = max_lineup + max_rotation + max_bullpen + max_bench + dictionary["slot"]
-    y_pos = round(float(un_normalised_y) / float(max_lineup + max_rotation + max_bullpen + max_bench + first_unused_visiting_player_slot), 4)
+    y_pos = round(float(un_normalised_y) / float(max_lineup +
+                                                 max_rotation +
+                                                 max_bullpen +
+                                                 max_bench +
+                                                 first_unused_visiting_player_slot), 4)
     y_pos_list.append(y_pos)
 
 node_y.extend(y_pos_list)
@@ -298,6 +311,7 @@ event_links = dict(
     target=link_targets,
     value=link_values,
     color=link_colors,
+    label=link_labels
 )
 
 data = go.Sankey(node=event_nodes, link=event_links, arrangement="fixed")
