@@ -224,6 +224,7 @@ for player in players_index.values():
         link_targets.extend(node_export["link_targets"])
         link_values.extend(node_export["link_values"])
         link_colors.extend(node_export["link_colors"])
+        link_labels.extend(node_export["link_labels"])
 
         # now the more difficult problem of node positioning
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
@@ -232,19 +233,15 @@ for player in players_index.values():
         # for LINEAR VIEW: node position on x axis is based on season and day within season
         if x_axis_type == "LINEAR":
             for x_pos_dict in node_x_position_dictionaries:
-                x_pos = round(((float(x_pos_dict.get("season")) + (float(x_pos_dict.get("day")) / max_days_per_season)) / (float(seasons_to_view)+0.1)), 3)
+                x_pos = round(((float(x_pos_dict.get("season")) +
+                                (float(x_pos_dict.get("day")) / max_days_per_season)) /
+                               (float(seasons_to_view)+0.1)), 3)
                 x_pos_list.append(x_pos)
-        # for DYNAMIC VIEW: node position on x axis is based on unique season,day slot and number of those slots
+        # for DYNAMIC VIEW: node position on x axis is based on formula convert_season_day_to_x_axis
         elif x_axis_type == "DYNAMIC":
-            number_of_x_axis_items = len(unique_season_and_day_list)
-            for node_dictionary in node_x_position_dictionaries:
-                i = 1
-                for x_axis_slot in unique_season_and_day_list:
-                    if [node_dictionary.get("season"), node_dictionary.get("day")] == x_axis_slot:
-                        x_pos_list.append(round((i / number_of_x_axis_items), 2))
-                        break
-                    else:
-                        i += 1
+            for x_pos_dict in node_x_position_dictionaries:
+                x_pos = convert_season_day_to_x_axis((x_pos_dict.get("season"), x_pos_dict.get("day")))
+                x_pos_list.append(x_pos)
 
         node_x.extend(x_pos_list)
 
@@ -254,7 +251,8 @@ for player in players_index.values():
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
             if y_pos_dict.get("team_name") == team_to_display:
-                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]   # +1 is hack to fix a bug, Plotly does not like 0 Y values
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]
+                # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
@@ -306,7 +304,11 @@ for dictionary in y_pos_dict_slots:
             un_normalised_y = max_lineup + max_rotation + max_bullpen + dictionary["slot"][1]
     else:
         un_normalised_y = max_lineup + max_rotation + max_bullpen + max_bench + dictionary["slot"]
-    y_pos = round(float(un_normalised_y) / float(max_lineup + max_rotation + max_bullpen + max_bench + first_unused_visiting_player_slot), 4)
+    y_pos = round(float(un_normalised_y) / float(max_lineup +
+                                                 max_rotation +
+                                                 max_bullpen +
+                                                 max_bench +
+                                                 first_unused_visiting_player_slot), 4)
     y_pos_list.append(y_pos)
 node_y.extend(y_pos_list)
 
@@ -324,6 +326,7 @@ event_links = dict(
     target=link_targets,
     value=link_values,
     color=link_colors,
+    label=link_labels
 )
 
 data = go.Sankey(node=event_nodes, link=event_links, arrangement="fixed")
