@@ -50,7 +50,7 @@ def create_player_x_axis_nodes_and_labels(player_career_phase):
                                 "day": int(season_and_day_2[2]) - 1,
                                 "team": team}
 
-    label_1 = player_career_phase["player_name"] + " S" + str(int(season_and_day_1[0]) + 1) + "D" + str(int(season_and_day_1[2]) + 1)
+    label_1 = player_career_phase["player_name"]
     label_2 = ""
 
     return x_position_dictionary_1, label_1, x_position_dictionary_2, label_2
@@ -65,6 +65,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
     link_targets = []
     link_values = []
     link_colors = []
+    link_labels = []
     phase_count = 0
     new_index = 0
     for current_career_phase in player_career_phases:
@@ -72,6 +73,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
         # a span where they were on one team
         color = current_career_phase["team_main_color"]
         color_2 = current_career_phase["team_secondary_color"]
+        link_label = current_career_phase["player_name"]
         x_position_dictionary_1, label_1, x_position_dictionary_2, label_2 = create_player_x_axis_nodes_and_labels(current_career_phase)
         y_position_dictionary = {"team_name": current_career_phase["nickname"],
                                     "position_type_id": current_career_phase["position_type_id"],
@@ -86,6 +88,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
         link_targets.append((2*phase_count) + index_of_last_node_added + 1)
         link_values.append(1)
         link_colors.append(color_2)
+        link_labels.append(link_label)
 
         # second node
         node_labels.append(label_2)
@@ -99,6 +102,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
             link_targets.append((2*phase_count) + index_of_last_node_added + 2)
             link_values.append(1)
             link_colors.append(color_2)
+            link_labels.append(link_label)
         phase_count += 1
 
     new_index = index_of_last_node_added + len(node_labels)
@@ -108,6 +112,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
             "link_targets": link_targets,
             "link_values": link_values,
             "link_colors": link_colors,
+            "link_labels": link_labels,
             "node_x_position_dictionaries": node_x_position_dictionaries,
             "node_y_position_dictionaries": node_y_position_dictionaries,
             "node_colors": node_colors,
@@ -168,7 +173,7 @@ def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last
                 if not season_and_day in unique_season_and_day_list:
                     unique_season_and_day_list.append(season_and_day)
 
-    # sort the list and return
+    # sort the time slots in order by season and then by day and return
     unique_season_and_day_list.sort(key=itemgetter(0, 1))
     return unique_season_and_day_list
 
@@ -180,11 +185,12 @@ link_sources = []
 link_targets = []
 link_values = []
 link_colors = []
+link_labels = []
 node_x = []
 node_y = []
 y_pos_dict_slots = []
-node_labels = []
 node_colors = []
+node_labels = []
 
 index_of_last_node_added = 0 
 first_unused_visiting_player_slot = 0
@@ -210,7 +216,7 @@ with open('all_roster_changes.csv', newline='') as csvfile:
 if x_axis_type == "DYNAMIC":
     unique_season_and_day_list = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added) 
 
-# now we will loop through all players to assign the correct values to nodea of the Sankey plot
+# now we will loop through all players to assign their values to nodes of the Sankey plot
 for player in players_index.values():
     if player.was_player_ever_on_team(team_to_display):
         print("doing nodes for Player:", player.get_name())
@@ -218,13 +224,13 @@ for player in players_index.values():
         # take our big node_export data bundle and break it into the parts we need to pass to Plotly
         # and append those to the long lists Plotly takes as input
         node_export = export_processed_graphing_info(player.get_career_phases(), index_of_last_node_added, selected_season_and_day)
-        node_labels.extend(node_export["node_labels"])
-        node_colors.extend(node_export["node_colors"])
         link_sources.extend(node_export["link_sources"])
         link_targets.extend(node_export["link_targets"])
         link_values.extend(node_export["link_values"])
         link_colors.extend(node_export["link_colors"])
         link_labels.extend(node_export["link_labels"])
+        node_colors.extend(node_export["node_colors"])
+        node_labels.extend(node_export["node_labels"])
 
         # now the more difficult problem of node positioning
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
@@ -234,10 +240,10 @@ for player in players_index.values():
         if x_axis_type == "LINEAR":
             for x_pos_dict in node_x_position_dictionaries:
                 x_pos = round(((float(x_pos_dict.get("season")) +
-                                (float(x_pos_dict.get("day")) / max_days_per_season)) /
+                               (float(x_pos_dict.get("day")) / max_days_per_season)) /
                                (float(seasons_to_view)+0.1)), 3)
                 x_pos_list.append(x_pos)
-        # for DYNAMIC VIEW: node position on x axis is based on formula convert_season_day_to_x_axis
+        # for DYNAMIC VIEW: node position on x axis is based on unique [season,day] slot and number of those slots
         elif x_axis_type == "DYNAMIC":
             for x_pos_dict in node_x_position_dictionaries:
                 x_pos = convert_season_day_to_x_axis((x_pos_dict.get("season"), x_pos_dict.get("day")))
@@ -251,8 +257,7 @@ for player in players_index.values():
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
             if y_pos_dict.get("team_name") == team_to_display:
-                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]
-                # +1 is hack to fix a bug, Plotly does not like 0 Y values
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1] # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
