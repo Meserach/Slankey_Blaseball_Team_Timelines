@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import csv
 from operator import itemgetter
 
-# manually set variables (for now)
+# manually set/adjusted variables (for now)
 seasons_to_view = 14
 max_days_per_season = 135
 team_to_display = "Firefighters"
@@ -37,23 +37,23 @@ class Player:
 
 # takes in a player career phase and generates a dictionary object that will be used for plotting along the X axis
 def create_player_x_axis_nodes_and_labels(player_career_phase):
-        team = player_career_phase["nickname"]
+    team = player_career_phase["nickname"]
 
-        season_and_day_1 = player_career_phase["gamephase_from_timestamp"].split(",")
-        season_and_day_2 = player_career_phase["gamephase_from_timestamp-2"].split(",")
+    season_and_day_1 = player_career_phase["gamephase_from_timestamp"].split(",")
+    season_and_day_2 = player_career_phase["gamephase_from_timestamp-2"].split(",")
 
-        x_position_dictionary_1 = {"season": int(season_and_day_1[0]),
-                                    "day": int(season_and_day_1[2]),
-                                    "team": team}
+    x_position_dictionary_1 = {"season": int(season_and_day_1[0]),
+                                "day": int(season_and_day_1[2]),
+                                "team": team}
 
-        x_position_dictionary_2 = {"season": int(season_and_day_2[0]),
-                                    "day": int(season_and_day_2[2]) - 1,
-                                    "team": team}
+    x_position_dictionary_2 = {"season": int(season_and_day_2[0]),
+                                "day": int(season_and_day_2[2]) - 1,
+                                "team": team}
 
-        label_1 = player_career_phase["player_name"] + " S" + str(int(season_and_day_1[0]) + 1) + "D" + str(int(season_and_day_1[2]) + 1)
-        label_2 = ""
+    label_1 = player_career_phase["player_name"] + " S" + str(int(season_and_day_1[0]) + 1) + "D" + str(int(season_and_day_1[2]) + 1)
+    label_2 = ""
 
-        return x_position_dictionary_1, label_1, x_position_dictionary_2, label_2
+    return x_position_dictionary_1, label_1, x_position_dictionary_2, label_2
 
 # create everything used for plotting the graph
 def export_processed_graphing_info(player_career_phases, index_of_last_node_added, current_season_and_day):
@@ -72,11 +72,10 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
         # a span where they were on one team
         color = current_career_phase["team_main_color"]
         color_2 = current_career_phase["team_secondary_color"]
+        x_position_dictionary_1, label_1, x_position_dictionary_2, label_2 = create_player_x_axis_nodes_and_labels(current_career_phase)
         y_position_dictionary = {"team_name": current_career_phase["nickname"],
                                     "position_type_id": current_career_phase["position_type_id"],
                                     "position_id": current_career_phase["position_id"]}
-
-        x_position_dictionary_1, label_1, x_position_dictionary_2, label_2 = create_player_x_axis_nodes_and_labels(current_career_phase)
 
         # first node
         node_labels.append(label_1)
@@ -208,6 +207,9 @@ with open('all_roster_changes.csv', newline='') as csvfile:
         if player_exists:
             players_index[player_id].update_info(processed_player_career_phase)
 
+if x_axis_type == "DYNAMIC":
+    unique_season_and_day_list = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added) 
+
 # now we will loop through all players to assign the correct values to nodea of the Sankey plot
 for player in players_index.values():
     if player.was_player_ever_on_team(team_to_display):
@@ -234,7 +236,6 @@ for player in players_index.values():
                 x_pos_list.append(x_pos)
         # for DYNAMIC VIEW: node position on x axis is based on unique season,day slot and number of those slots
         elif x_axis_type == "DYNAMIC":
-            unique_season_and_day_list = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added)
             number_of_x_axis_items = len(unique_season_and_day_list)
             for node_dictionary in node_x_position_dictionaries:
                 i = 1
