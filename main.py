@@ -2,222 +2,203 @@ import plotly.graph_objects as go
 import csv
 from operator import itemgetter
 
-
-class PlayerCareer:
-
-    def __init__(self, player_id, player_name, career_phase):
-        self.__player_id = player_id
-        self.__player_name = player_name
-        self.__player_team_names = [career_phase["nickname"]]
-        self.__career_phases = [career_phase]
-
-    def append_career_phase(self, career_phase):
-        self.__career_phases.append(career_phase)
-        self.__player_team_names.append(career_phase["nickname"])
-
-    def get_player_name(self):
-        return self.__player_name
-
-    def was_player_ever_on_team(self, team_searched):
-        return team_searched in self.__player_team_names
-
-    @staticmethod
-    def node_x_and_labels_method(_is_first, __current_career_phase):
-        _label = ''
-        _team = __current_career_phase["nickname"]
-
-        if _is_first:
-            _season_and_day = __current_career_phase["gamephase_from_timestamp"].strip("()").split(",")
-        else:
-            _season_and_day = __current_career_phase["gamephase_from_timestamp-2"].strip("()").split(",")
-
-        if _season_and_day == ['NULL']:
-            _season_and_day = current_season_and_day
-        if _season_and_day[2] == '':
-            if _season_and_day[3] == 'PRESEASON':
-                _season_and_day[2] = '0'
-            if _season_and_day[3] == 'EARLY_SIESTA':
-                _season_and_day[2] = '27'
-            if _season_and_day[3] == 'LATE_SIESTA':
-                _season_and_day[2] = '72'
-            if _season_and_day[3] == 'END_REGULAR_SEASON':
-                _season_and_day[2] = '99'
-            if _season_and_day[3] == 'END_POSTSEASON':
-                _season_and_day[2] = '125'
-            if _season_and_day[3] == 'BOSS_FIGHT':
-                _season_and_day[2] = '130'
-            if _season_and_day[3] == 'ELECTIONS' or _season_and_day[3] == 'ELECTION_RESULTS':
-                _season_and_day[2] = '135'
-        if _is_first:
-            _x_position_dictionary = {"season": int(_season_and_day[0]),
-                                      "day": int(_season_and_day[2]),
-                                      "team": _team}
-        else:
-            _x_position_dictionary = {"season": int(_season_and_day[0]),
-                                      "day": int(_season_and_day[2]) - 1,
-                                      "team": _team}
-        if _is_first:
-            _label = __current_career_phase["player_name"]
-        else:
-            _label = ""
-        return _x_position_dictionary, _label
-
-    def export_nodes(self, _index_of_last_node_added, _current_season_and_day):
-        _node_labels = []
-        _node_x_position_dictionaries = []
-        _node_y_position_dictionaries = []
-        _node_colors = []
-        _link_sources = []
-        _link_targets = []
-        _link_values = []
-        _link_colors = []
-        _link_labels = []
-        _phase_count = 0
-        _new_index = 0
-        for __current_career_phase in self.__career_phases:
-
-            # each career phase is a pair of nodes (start and end) with a link between,
-            # a span where they were on one team
-            _link_label = __current_career_phase["player_name"]
-            _color = __current_career_phase["team_main_color"]
-            _color2 = __current_career_phase["team_secondary_color"]
-            _y_position_dictionary = {"team_name": __current_career_phase["nickname"],
-                                      "position_type_id": __current_career_phase["position_type_id"],
-                                      "position_id": __current_career_phase["position_id"]}
-
-            # first node
-            _x_position_dictionary, _label = self.node_x_and_labels_method(True, __current_career_phase)
-            _node_labels.append(_label)
-            _node_x_position_dictionaries.append(_x_position_dictionary)
-            _node_y_position_dictionaries.append(_y_position_dictionary)
-            _node_colors.append(_color)
-            _link_sources.append((2*_phase_count) + _index_of_last_node_added)
-            _link_targets.append((2*_phase_count) + _index_of_last_node_added + 1)
-            _link_values.append(1)
-            _link_colors.append(_color2)
-            _link_labels.append(_link_label)
-
-            # second node
-            _x_position_dictionary, _label = self.node_x_and_labels_method(False, __current_career_phase)
-            _node_labels.append(_label)
-            _node_x_position_dictionaries.append(_x_position_dictionary)
-            _node_y_position_dictionaries.append(_y_position_dictionary)
-            _node_colors.append(_color)
-            # if this is the last node in the players career, don't add a link to the next node
-            if (_phase_count + 1) < len(self.__career_phases):
-                _link_sources.append((2*_phase_count) + _index_of_last_node_added + 1)
-                _link_targets.append((2*_phase_count) + _index_of_last_node_added + 2)
-                _link_values.append(1)
-                _link_colors.append(_color2)
-                _link_labels.append(_link_label)
-            _phase_count += 1
-        _new_index = _index_of_last_node_added + len(_node_labels)
-
-        return {"node_labels": _node_labels,
-                "link_sources": _link_sources,
-                "link_targets": _link_targets,
-                "link_values": _link_values,
-                "link_colors": _link_colors,
-                "link_labels": _link_labels,
-                "node_x_position_dictionaries": _node_x_position_dictionaries,
-                "node_y_position_dictionaries": _node_y_position_dictionaries,
-                "node_colors": _node_colors,
-                "new_index": _new_index}
-
-
-with open('all_roster_changes.csv', newline='') as csvfile:
-    reader = csv.DictReader(csvfile)  # create a dictionary with all the data in it by reading in the CSV file
-
-    # loop through the CSV, and for each player,
-    # pick out each career phase in chronological order and assign it to a PlayerCareer object
-
-    players_index = []
-    previous_entry_player_id = ""
-    same_player = False
-    player_count = 0
-    for row in reader:
-        same_player = (row["player_id"] == previous_entry_player_id)
-        if not same_player:
-            # Create a new PlayerCareer object
-            this_career = PlayerCareer(row["player_id"], row["player_name"], row)
-            # store a reference to the new PlayerCareer object in a dictionary
-            players_index.append(
-                {"player_id": row["player_id"], "player_name": row["player_name"], "player_career": this_career})
-
-        if same_player:
-            this_career.append_career_phase(row)
-        previous_entry_player_id = row["player_id"]
-
-# construct ginormous arrays to pass to Plotly's Sankey method
-
-node_labels = []
-node_x = []
-y_pos_dict_slots = []
-node_y = []
-node_colors = []
-link_sources = []
-link_targets = []
-link_values = []
-link_colors = []
-link_labels = []
-index_of_last_node_added = 0
-first_unused_visiting_player_slot = 0
-players_drawn = 0
+# manually set/adjusted variables (for now)
 seasons_to_view = 16
 max_days_per_season = 135
 team_to_display = "Firefighters"
-current_season_and_day = ['13', '', '120', '']
-x_axis_type = "DYNAMIC"   # current options are "LINEAR" and "DYNAMIC"
-unique_season_and_day_list = []
+selected_season_and_day = ['13', '', '120', '' ]# season 13 day 120
+x_axis_type = "DYNAMIC" # current options are "LINEAR" and "DYNAMIC"
 
-# first we will loop through all players to determine how many x-axis slots are required for the dynamic view
-for player in players_index:
-    career = player["player_career"]
-    if career.was_player_ever_on_team(team_to_display):
-        node_export = career.export_nodes(index_of_last_node_added, current_season_and_day)
-        node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
-        for node_dictionary in node_x_position_dictionaries:
-            season_and_day = [node_dictionary.get("season"), node_dictionary.get("day"), node_dictionary.get("team")]
-            if season_and_day in unique_season_and_day_list:
-                pass
-            else:
-                unique_season_and_day_list.append(season_and_day)
-    else:
-        pass
+class Player:
+    def __init__(self, career_phase):
+        self.__id = career_phase["player_id"]
+        self.__name = career_phase["player_name"]
+        self.__team_history = [career_phase["nickname"]]
+        self.__career_phases = [career_phase]
 
-#  for dynamic mode, we first want unique x axis slots for every single event whatever team it happened on
-number_of_x_axis_slots = len(unique_season_and_day_list)
-unique_season_and_day_list.sort(key=itemgetter(0, 1))  # sort the time slots in order by season and then by day
-#  now we want to privilege just the events from the target team.
-#  so go through the list of unique seasons and days and remove entries about other teams
-unique_season_and_day_list_for_specified_team = [entry for entry in unique_season_and_day_list if entry[2] ==
-                                                 team_to_display]
+    def get_id(self):
+        return self.__id
 
-# now define a map of "eras" based on the unique season & day slots of this team.
-# each sequential pair of such slots should be such an "era"
-i = 0
-era_list = []
-prev_event = None
-for event in unique_season_and_day_list_for_specified_team:
-    if i > 0:
-        era_start = (prev_event[0], prev_event[1])
-        era_end = (event[0], event[1])
-        era = (i, era_start, era_end)
-        era_list.append(era)
-    prev_event = event
-    i += 1
+    def get_name(self):
+        return self.__name
 
-#  era_list now has a list of eras for this team with start and end times in (season, day) format.
-#  we break the x-axis up into slots of equal width, one for each era, and define a function that,
-#  for any (season, day) returns an x-axis value at the suitable, linearly interpolated point within the correct slot
+    def get_team_history(self):
+        return self.__team_history
 
+    def get_career_phases(self):
+        return self.__career_phases
 
-def get_absolute_day(foo):
-    absolute_day = foo[0] * max_days_per_season + foo[1]
-    return absolute_day
+    def was_player_ever_on_team(self, team_searched):
+        return team_searched in self.__team_history
 
+    def update_info(self, career_phase):
+        self.__career_phases.append(career_phase)
+        self.__team_history.append(career_phase["nickname"])
 
-def convert_season_day_to_x_axis(season_day):
+# takes in a player career phase and generates a dictionary object that will be used for plotting along the X axis
+def create_player_x_axis_nodes_and_labels(player_career_phase):
+    team = player_career_phase["nickname"]
+
+    season_and_day_1 = player_career_phase["gamephase_from_timestamp"].split(",")
+    season_and_day_2 = player_career_phase["gamephase_from_timestamp-2"].split(",")
+
+    x_position_dictionary_1 = {"season": int(season_and_day_1[0]),
+                                "day": int(season_and_day_1[2]),
+                                "team": team}
+
+    x_position_dictionary_2 = {"season": int(season_and_day_2[0]),
+                                "day": int(season_and_day_2[2]) - 1,
+                                "team": team}
+
+    label_1 = player_career_phase["player_name"]
+    label_2 = ""
+
+    return x_position_dictionary_1, label_1, x_position_dictionary_2, label_2
+
+# create everything used for plotting the graph
+def export_processed_graphing_info(player_career_phases, index_of_last_node_added, current_season_and_day):
+    node_labels = []
+    node_x_position_dictionaries = []
+    node_y_position_dictionaries = []
+    node_colors = []
+    link_sources = []
+    link_targets = []
+    link_values = []
+    link_colors = []
+    link_labels = []
+    phase_count = 0
+    new_index = 0
+    for current_career_phase in player_career_phases:
+        # each career phase is a pair of nodes (start and end) with a link between,
+        # a span where they were on one team
+        color = current_career_phase["team_main_color"]
+        color_2 = current_career_phase["team_secondary_color"]
+        link_label = current_career_phase["player_name"]
+        x_position_dictionary_1, label_1, x_position_dictionary_2, label_2 = create_player_x_axis_nodes_and_labels(current_career_phase)
+        y_position_dictionary = {"team_name": current_career_phase["nickname"],
+                                    "position_type_id": current_career_phase["position_type_id"],
+                                    "position_id": current_career_phase["position_id"]}
+
+        # first node
+        node_labels.append(label_1)
+        node_x_position_dictionaries.append(x_position_dictionary_1)
+        node_y_position_dictionaries.append(y_position_dictionary)
+        node_colors.append(color)
+        link_sources.append((2*phase_count) + index_of_last_node_added)
+        link_targets.append((2*phase_count) + index_of_last_node_added + 1)
+        link_values.append(1)
+        link_colors.append(color_2)
+        link_labels.append(link_label)
+
+        # second node
+        node_labels.append(label_2)
+        node_x_position_dictionaries.append(x_position_dictionary_2)
+        node_y_position_dictionaries.append(y_position_dictionary)
+        node_colors.append(color)
+
+        # if this is the last node in the players career, don't add a link to the next node
+        if (phase_count + 1) < len(player_career_phases):
+            link_sources.append((2*phase_count) + index_of_last_node_added + 1)
+            link_targets.append((2*phase_count) + index_of_last_node_added + 2)
+            link_values.append(1)
+            link_colors.append(color_2)
+            link_labels.append(link_label)
+        phase_count += 1
+
+    new_index = index_of_last_node_added + len(node_labels)
+
+    return {"node_labels": node_labels,
+            "link_sources": link_sources,
+            "link_targets": link_targets,
+            "link_values": link_values,
+            "link_colors": link_colors,
+            "link_labels": link_labels,
+            "node_x_position_dictionaries": node_x_position_dictionaries,
+            "node_y_position_dictionaries": node_y_position_dictionaries,
+            "node_colors": node_colors,
+            "new_index": new_index}
+
+# takes in a player career phase and calls all of our functions that help process the data.
+# it then returns the career phase with the processed data.
+# this way you only need to call this function once and then never worry about formatting the data again
+# also makes it easy to add new methods to process career phase data if the need arises
+def process_player_info(career_phase):
+    career_phase["gamephase_from_timestamp"] = process_season_and_day_timestamp(career_phase["gamephase_from_timestamp"])
+    career_phase["gamephase_from_timestamp-2"] = process_season_and_day_timestamp(career_phase["gamephase_from_timestamp-2"])
+
+    return career_phase
+
+# blaseball timestamps are generally formatted like "(13,,27,GAMEDAY)" which we parse into an array formatted like "['13', '', '27', 'GAMEDAY]" and then resave once processed as "13,,27,GAMEDAY" for Season 13 day 27
+# sometimes the timestamp has words in them instead of numbers so here we clean the data so every timestamp has a number for season and day
+def process_season_and_day_timestamp(timestamp):
+    # turn the string timestamp into an array
+    timestamp = timestamp.strip("()").split(",")
+    
+    # clean the timstamp
+    if timestamp == ['NULL']:
+        timestamp = selected_season_and_day
+    if timestamp[2] == '':
+        if timestamp[3] == 'PRESEASON':
+            timestamp[2] = '0'
+        if timestamp[3] == 'EARLY_SIESTA':
+            timestamp[2] = '27'
+        if timestamp[3] == 'LATE_SIESTA':
+            timestamp[2] = '72'
+        if timestamp[3] == 'END_REGULAR_SEASON':
+            timestamp[2] = '99'
+        if timestamp[3] == 'END_POSTSEASON':
+            timestamp[2] = '125'
+        if timestamp[3] == 'BOSS_FIGHT':
+            timestamp[2] = '130'
+        if timestamp[3] == 'ELECTIONS' or timestamp[3] == 'ELECTION_RESULTS':
+            timestamp[2] = '135'
+
+    # turn the timestamp array back into a string
+    timestamp = ','.join(timestamp)
+    return timestamp
+
+# returns a list of unique timestamps for every season/day in a teams history
+def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last_node_added):
+    unique_season_and_day_list_for_specified_team = []
+
+    # for every player that has been or is on the team, get their x axis nodes
+    for player in players_dict.values():
+        if player.was_player_ever_on_team(selected_team):
+            node_export = export_processed_graphing_info(player.get_career_phases(), index_of_last_node_added, selected_season_and_day)
+            node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
+
+            # for every unique season/day timestamp, add it to the list
+            for node_dictionary in node_x_position_dictionaries:
+                season_and_day_and_team = [node_dictionary.get("season"), node_dictionary.get("day"), node_dictionary.get("team")]
+                
+                if season_and_day_and_team[2] == selected_team and not season_and_day_and_team in unique_season_and_day_list_for_specified_team:
+                    unique_season_and_day_list_for_specified_team.append(season_and_day_and_team)
+
+    # sort the time slots in order by season and then by day and return
+    unique_season_and_day_list_for_specified_team.sort(key=itemgetter(0, 1))
+    return unique_season_and_day_list_for_specified_team
+
+def get_era_list(unique_season_and_day_list_for_specified_team):
+    # now define a map of "eras" based on the unique season & day slots of this team.
+    # each sequential pair of such slots should be such an "era"
+    i = 0
+    era_list = []
+    prev_event = None
+    for event in unique_season_and_day_list_for_specified_team:
+        if i > 0:
+            era_start = (prev_event[0], prev_event[1])
+            era_end = (event[0], event[1])
+            era = (i, era_start, era_end)
+            era_list.append(era)
+        prev_event = event
+        i += 1
+
+    #  era_list now has a list of eras for this team with start and end times in (season, day) format.
+    #  we break the x-axis up into slots of equal width, one for each era, and define a function that,
+    #  for any (season, day) returns an x-axis value at the suitable, linearly interpolated point within the correct slot
+    return era_list
+
+def convert_season_day_to_x_axis(era_list, season_day):
     number_of_eras = len(era_list)
     for era_to_test in era_list:
         abs_day = get_absolute_day(season_day)
@@ -232,23 +213,68 @@ def convert_season_day_to_x_axis(season_day):
                 x_axis = round((era_number + fraction_of_era_span) / (number_of_eras + 1), 3)
                 return x_axis
 
+# converts a season and day into a single unique number to compare dates easily
+def get_absolute_day(season_day):
+    absolute_day = season_day[0] * max_days_per_season + season_day[1]
+    return absolute_day
+
+
+
+# a dict mapping player Id to the Player object defined above
+players_index = {}
+
+# used to graph the final product
+link_sources = []
+link_targets = []
+link_values = []
+link_colors = []
+link_labels = []
+node_x = []
+node_y = []
+y_pos_dict_slots = []
+node_colors = []
+node_labels = []
+
+index_of_last_node_added = 0 
+first_unused_visiting_player_slot = 0
+players_drawn = 0
+
+# read a csv file with all player data and create a dictionary that maps player id to the player object
+with open('all_roster_changes.csv', newline='') as csvfile:
+    csvFile = csv.DictReader(csvfile)  
+    for player_career_phase in csvFile:
+        processed_player_career_phase = process_player_info(player_career_phase)
+        player_id = processed_player_career_phase["player_id"]
+        player_exists = (player_id in players_index)
+
+        # if the player doesnt exist yet in our player_index dict, create a new player object and add it to the dict
+        if not player_exists:
+            new_player = Player(processed_player_career_phase)
+            players_index[player_id] = new_player
+
+        # if the player already exists in our dict, just update the existing player with the new info
+        if player_exists:
+            players_index[player_id].update_info(processed_player_career_phase)
+
+if x_axis_type == "DYNAMIC":
+    unique_season_and_day_list_for_specified_team = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added)
+    era_list = get_era_list(unique_season_and_day_list_for_specified_team)
 
 # now we will loop through all players to assign their values to nodes of the Sankey plot
-for player in players_index:
-    career = player["player_career"]
-    if career.was_player_ever_on_team(team_to_display):
-        print("doing nodes for Player:", career.get_player_name())
+for player in players_index.values():
+    if player.was_player_ever_on_team(team_to_display):
+        print("doing nodes for Player:", player.get_name())
         was_ever_not_on_team = False
         # take our big node_export data bundle and break it into the parts we need to pass to Plotly
         # and append those to the long lists Plotly takes as input
-        node_export = career.export_nodes(index_of_last_node_added, current_season_and_day)
-        node_labels.extend(node_export["node_labels"])
-        node_colors.extend(node_export["node_colors"])
+        node_export = export_processed_graphing_info(player.get_career_phases(), index_of_last_node_added, selected_season_and_day)
         link_sources.extend(node_export["link_sources"])
         link_targets.extend(node_export["link_targets"])
         link_values.extend(node_export["link_values"])
         link_colors.extend(node_export["link_colors"])
         link_labels.extend(node_export["link_labels"])
+        node_colors.extend(node_export["node_colors"])
+        node_labels.extend(node_export["node_labels"])
 
         # now the more difficult problem of node positioning
         node_x_position_dictionaries = node_export["node_x_position_dictionaries"]
@@ -258,13 +284,13 @@ for player in players_index:
         if x_axis_type == "LINEAR":
             for x_pos_dict in node_x_position_dictionaries:
                 x_pos = round(((float(x_pos_dict.get("season")) +
-                                (float(x_pos_dict.get("day")) / max_days_per_season)) /
+                               (float(x_pos_dict.get("day")) / max_days_per_season)) /
                                (float(seasons_to_view)+0.1)), 3)
                 x_pos_list.append(x_pos)
         # for DYNAMIC VIEW: node position on x axis is based on formula convert_season_day_to_x_axis
         elif x_axis_type == "DYNAMIC":
             for x_pos_dict in node_x_position_dictionaries:
-                x_pos = convert_season_day_to_x_axis((x_pos_dict.get("season"), x_pos_dict.get("day")))
+                x_pos = convert_season_day_to_x_axis(era_list, (x_pos_dict.get("season"), x_pos_dict.get("day")))
                 x_pos_list.append(x_pos)
 
         node_x.extend(x_pos_list)
@@ -275,8 +301,7 @@ for player in players_index:
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
             if y_pos_dict.get("team_name") == team_to_display:
-                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]
-                # +1 is hack to fix a bug, Plotly does not like 0 Y values
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1] # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
@@ -287,13 +312,13 @@ for player in players_index:
         index_of_last_node_added = node_export["new_index"]
         players_drawn += 1
     else:
-        print("skipping Player:", career.get_player_name(), "as was never on ", team_to_display)
+        print("skipping Player:", player.get_name(), "as was never on ", team_to_display)
 
 print("Total player careers drawn: ", players_drawn)
 print("Total slots used for visiting players", first_unused_visiting_player_slot - 1)
+
 # now we know how many players total are drawn and how many spend time outside the current team,
 # we can normalise the y-values, so loop through them all to do so
-
 lineup_positions = []
 rotation_positions = []
 bullpen_positions = []
@@ -334,7 +359,6 @@ for dictionary in y_pos_dict_slots:
                                                  max_bench +
                                                  first_unused_visiting_player_slot), 4)
     y_pos_list.append(y_pos)
-
 node_y.extend(y_pos_list)
 
 event_nodes = dict(
