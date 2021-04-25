@@ -3,7 +3,7 @@ import csv
 from operator import itemgetter
 
 # manually set/adjusted variables (for now)
-seasons_to_view = 14
+seasons_to_view = 16
 max_days_per_season = 135
 team_to_display = "Firefighters"
 selected_season_and_day = ['13', '', '120', '' ]# season 13 day 120
@@ -159,7 +159,7 @@ def process_season_and_day_timestamp(timestamp):
 
 # returns a list of unique timestamps for every season/day in a teams history
 def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last_node_added):
-    unique_season_and_day_list = []
+    unique_season_and_day_list_for_specified_team = []
 
     # for every player that has been or is on the team, get their x axis nodes
     for player in players_dict.values():
@@ -169,13 +169,56 @@ def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last
 
             # for every unique season/day timestamp, add it to the list
             for node_dictionary in node_x_position_dictionaries:
-                season_and_day = [node_dictionary.get("season"), node_dictionary.get("day")]
-                if not season_and_day in unique_season_and_day_list:
-                    unique_season_and_day_list.append(season_and_day)
+                season_and_day_and_team = [node_dictionary.get("season"), node_dictionary.get("day"), node_dictionary.get("team")]
+                
+                if season_and_day_and_team[2] == selected_team and not season_and_day_and_team in unique_season_and_day_list_for_specified_team:
+                    unique_season_and_day_list_for_specified_team.append(season_and_day_and_team)
 
     # sort the time slots in order by season and then by day and return
-    unique_season_and_day_list.sort(key=itemgetter(0, 1))
-    return unique_season_and_day_list
+    unique_season_and_day_list_for_specified_team.sort(key=itemgetter(0, 1))
+    return unique_season_and_day_list_for_specified_team
+
+def get_era_list(unique_season_and_day_list_for_specified_team):
+    # now define a map of "eras" based on the unique season & day slots of this team.
+    # each sequential pair of such slots should be such an "era"
+    i = 0
+    era_list = []
+    prev_event = None
+    for event in unique_season_and_day_list_for_specified_team:
+        if i > 0:
+            era_start = (prev_event[0], prev_event[1])
+            era_end = (event[0], event[1])
+            era = (i, era_start, era_end)
+            era_list.append(era)
+        prev_event = event
+        i += 1
+
+    #  era_list now has a list of eras for this team with start and end times in (season, day) format.
+    #  we break the x-axis up into slots of equal width, one for each era, and define a function that,
+    #  for any (season, day) returns an x-axis value at the suitable, linearly interpolated point within the correct slot
+    return era_list
+
+def convert_season_day_to_x_axis(era_list, season_day):
+    number_of_eras = len(era_list)
+    for era_to_test in era_list:
+        abs_day = get_absolute_day(season_day)
+        abs_day_era_start = get_absolute_day(era_to_test[1])
+        abs_day_era_end = get_absolute_day(era_to_test[2])
+        era_number = era_to_test[0]
+        if abs_day >= abs_day_era_start:
+            if abs_day <= abs_day_era_end:
+                #  then this is correct era
+                era_span = abs_day_era_end - abs_day_era_start
+                fraction_of_era_span = (abs_day - abs_day_era_start) / era_span
+                x_axis = round((era_number + fraction_of_era_span) / (number_of_eras + 1), 3)
+                return x_axis
+
+# converts a season and day into a single unique number to compare dates easily
+def get_absolute_day(season_day):
+    absolute_day = season_day[0] * max_days_per_season + season_day[1]
+    return absolute_day
+
+
 
 # a dict mapping player Id to the Player object defined above
 players_index = {}
@@ -214,7 +257,8 @@ with open('all_roster_changes.csv', newline='') as csvfile:
             players_index[player_id].update_info(processed_player_career_phase)
 
 if x_axis_type == "DYNAMIC":
-    unique_season_and_day_list = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added) 
+    unique_season_and_day_list_for_specified_team = get_teams_unique_seasons_and_days(players_index, team_to_display, index_of_last_node_added)
+    era_list = get_era_list(unique_season_and_day_list_for_specified_team)
 
 # now we will loop through all players to assign their values to nodes of the Sankey plot
 for player in players_index.values():
@@ -243,10 +287,10 @@ for player in players_index.values():
                                (float(x_pos_dict.get("day")) / max_days_per_season)) /
                                (float(seasons_to_view)+0.1)), 3)
                 x_pos_list.append(x_pos)
-        # for DYNAMIC VIEW: node position on x axis is based on unique [season,day] slot and number of those slots
+        # for DYNAMIC VIEW: node position on x axis is based on formula convert_season_day_to_x_axis
         elif x_axis_type == "DYNAMIC":
             for x_pos_dict in node_x_position_dictionaries:
-                x_pos = convert_season_day_to_x_axis((x_pos_dict.get("season"), x_pos_dict.get("day")))
+                x_pos = convert_season_day_to_x_axis(era_list, (x_pos_dict.get("season"), x_pos_dict.get("day")))
                 x_pos_list.append(x_pos)
 
         node_x.extend(x_pos_list)
