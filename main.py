@@ -3,11 +3,12 @@ import csv
 from operator import itemgetter
 
 # manually set/adjusted variables (for now)
-seasons_to_view = 16
-max_days_per_season = 135
+seasons_to_view = 17
+max_days_per_season = 141
 team_to_display = "Firefighters"
-selected_season_and_day = ['13', '', '120', '' ]# season 13 day 120
-x_axis_type = "DYNAMIC" # current options are "LINEAR" and "DYNAMIC"
+selected_season_and_day = ['18', '', '140', '']  # season 19 day 141
+x_axis_type = "DYNAMIC"  # current options are "LINEAR" and "DYNAMIC"
+
 
 class Player:
     def __init__(self, career_phase):
@@ -35,6 +36,7 @@ class Player:
         self.__career_phases.append(career_phase)
         self.__team_history.append(career_phase["nickname"])
 
+
 # takes in a player career phase and generates a dictionary object that will be used for plotting along the X axis
 def create_player_x_axis_nodes_and_labels(player_career_phase):
     team = player_career_phase["nickname"]
@@ -43,17 +45,18 @@ def create_player_x_axis_nodes_and_labels(player_career_phase):
     season_and_day_2 = player_career_phase["gamephase_from_timestamp-2"].split(",")
 
     x_position_dictionary_1 = {"season": int(season_and_day_1[0]),
-                                "day": int(season_and_day_1[2]),
-                                "team": team}
+                               "day": int(season_and_day_1[2]),
+                               "team": team}
 
     x_position_dictionary_2 = {"season": int(season_and_day_2[0]),
-                                "day": int(season_and_day_2[2]) - 1,
-                                "team": team}
+                               "day": int(season_and_day_2[2]) - 1,
+                               "team": team}
 
     label_1 = player_career_phase["player_name"]
     label_2 = ""
 
     return x_position_dictionary_1, label_1, x_position_dictionary_2, label_2
+
 
 # create everything used for plotting the graph
 def export_processed_graphing_info(player_career_phases, index_of_last_node_added, current_season_and_day):
@@ -67,7 +70,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
     link_colors = []
     link_labels = []
     phase_count = 0
-    new_index = 0
+
     for current_career_phase in player_career_phases:
         # each career phase is a pair of nodes (start and end) with a link between,
         # a span where they were on one team
@@ -76,8 +79,8 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
         link_label = current_career_phase["player_name"]
         x_position_dictionary_1, label_1, x_position_dictionary_2, label_2 = create_player_x_axis_nodes_and_labels(current_career_phase)
         y_position_dictionary = {"team_name": current_career_phase["nickname"],
-                                    "position_type_id": current_career_phase["position_type_id"],
-                                    "position_id": current_career_phase["position_id"]}
+                                 "position_type_id": current_career_phase["position_type_id"],
+                                 "position_id": current_career_phase["position_id"]}
 
         # first node
         node_labels.append(label_1)
@@ -118,6 +121,7 @@ def export_processed_graphing_info(player_career_phases, index_of_last_node_adde
             "node_colors": node_colors,
             "new_index": new_index}
 
+
 # takes in a player career phase and calls all of our functions that help process the data.
 # it then returns the career phase with the processed data.
 # this way you only need to call this function once and then never worry about formatting the data again
@@ -127,6 +131,7 @@ def process_player_info(career_phase):
     career_phase["gamephase_from_timestamp-2"] = process_season_and_day_timestamp(career_phase["gamephase_from_timestamp-2"])
 
     return career_phase
+
 
 # blaseball timestamps are generally formatted like "(13,,27,GAMEDAY)" which we parse into an array formatted like "['13', '', '27', 'GAMEDAY]" and then resave once processed as "13,,27,GAMEDAY" for Season 13 day 27
 # sometimes the timestamp has words in them instead of numbers so here we clean the data so every timestamp has a number for season and day
@@ -140,22 +145,25 @@ def process_season_and_day_timestamp(timestamp):
     if timestamp[2] == '':
         if timestamp[3] == 'PRESEASON':
             timestamp[2] = '0'
-        if timestamp[3] == 'EARLY_SIESTA':
+        if timestamp[3] == 'EARLYSIESTA':
             timestamp[2] = '27'
-        if timestamp[3] == 'LATE_SIESTA':
+        if timestamp[3] == 'LATESIESTA':
             timestamp[2] = '72'
-        if timestamp[3] == 'END_REGULAR_SEASON':
+        if timestamp[3] == 'SEASON_END':
             timestamp[2] = '99'
-        if timestamp[3] == 'END_POSTSEASON':
+        if timestamp[3] == 'PRE_POSTSEASON':
+            timestamp[2] = '100'
+        if timestamp[3] == 'POSTSEASON_END':
             timestamp[2] = '125'
         if timestamp[3] == 'BOSS_FIGHT':
             timestamp[2] = '130'
-        if timestamp[3] == 'ELECTIONS' or timestamp[3] == 'ELECTION_RESULTS':
+        if timestamp[3] == 'ELECTIONS':
             timestamp[2] = '135'
 
     # turn the timestamp array back into a string
     timestamp = ','.join(timestamp)
     return timestamp
+
 
 # returns a list of unique timestamps for every season/day in a teams history
 def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last_node_added):
@@ -178,6 +186,7 @@ def get_teams_unique_seasons_and_days(players_dict, selected_team, index_of_last
     unique_season_and_day_list_for_specified_team.sort(key=itemgetter(0, 1))
     return unique_season_and_day_list_for_specified_team
 
+
 def get_era_list(unique_season_and_day_list_for_specified_team):
     # now define a map of "eras" based on the unique season & day slots of this team.
     # each sequential pair of such slots should be such an "era"
@@ -198,6 +207,7 @@ def get_era_list(unique_season_and_day_list_for_specified_team):
     #  for any (season, day) returns an x-axis value at the suitable, linearly interpolated point within the correct slot
     return era_list
 
+
 def convert_season_day_to_x_axis(era_list, season_day):
     number_of_eras = len(era_list)
     for era_to_test in era_list:
@@ -213,11 +223,11 @@ def convert_season_day_to_x_axis(era_list, season_day):
                 x_axis = round((era_number + fraction_of_era_span) / (number_of_eras + 1), 3)
                 return x_axis
 
+
 # converts a season and day into a single unique number to compare dates easily
 def get_absolute_day(season_day):
     absolute_day = season_day[0] * max_days_per_season + season_day[1]
     return absolute_day
-
 
 
 # a dict mapping player Id to the Player object defined above
@@ -238,6 +248,7 @@ node_labels = []
 index_of_last_node_added = 0 
 first_unused_visiting_player_slot = 0
 players_drawn = 0
+era_list = []
 
 # read a csv file with all player data and create a dictionary that maps player id to the player object
 with open('all_roster_changes.csv', newline='') as csvfile:
@@ -301,7 +312,7 @@ for player in players_index.values():
         y_pos_list = []
         for y_pos_dict in node_y_position_dictionaries:
             if y_pos_dict.get("team_name") == team_to_display:
-                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1] # +1 is hack to fix a bug, Plotly does not like 0 Y values
+                slot_list = [int(y_pos_dict.get("position_type_id")), int(y_pos_dict.get("position_id")) + 1]  # +1 is hack to fix a bug, Plotly does not like 0 Y values
                 y_pos_dict_slots.append({"on team": True, "slot": slot_list})
             else:
                 y_pos_dict_slots.append({"on team": False, "slot": first_unused_visiting_player_slot})
